@@ -1,0 +1,10 @@
+cohesion
+flake8-functions
+flake8-expression-complexity
+flake8-alphabetize
+flake8-bugbear
+flake8-builtins
+flake8-functions-names
+flake8-pytest-style
+flake8-return
+flake8-simplify

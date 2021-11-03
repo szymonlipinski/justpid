@@ -1,5 +1,8 @@
+import contextlib
 import os
 import re
+from pathlib import Path
+from typing import Union
 
 import psutil as ps
 
@@ -10,15 +13,11 @@ class LockException(Exception):
     pass
 
 
-def current_process_pid() -> int:
-    return os.getpid()
+def _make_pid_path(directory: str) -> Path:
+    return Path(directory / pid_file_name)
 
 
-def _make_pid_path(directory: str) -> str:
-    return os.path.join(directory, pid_file_name)
-
-
-def _read_pidfile(directory: str) -> int:
+def _read_pidfile(directory: str) -> Union[None, int]:
     """Reads a pid file, checks if the content is valid.
     Returns the pid value from the file or None if there is not valid value.
 
@@ -27,27 +26,26 @@ def _read_pidfile(directory: str) -> int:
               or the value is not a valid integer
     """
     pid_path = _make_pid_path(directory)
-    try:
-        with open(pid_path, "r") as f:
-            data = f.read()
-            if re.match("^[0-9]+$", data):
-                return int(data)
-    except FileNotFoundError:
-        pass
+    with contextlib.suppress(FileNotFoundError), open(pid_path, "r") as f:
+        data = f.read()
+        if re.match("^[0-9]+$", data):
+            return int(data)
+    return None
 
 
-def _write_pidfile(directory: str, pid: int = os.getpid()) -> None:
+def _write_pidfile(directory: str, pid: int = None) -> None:
     """Writes the pid to the pidfile in the directory.
 
     :param directory: directory for the pid file
     :pid: pid to write, defaults to the current process id
 
     """
+    pid = pid or os.getpid()
     with open(_make_pid_path(directory), "w+") as f:
         f.write(str(pid))
 
 
-def _does_pid_exist(pid: int) -> bool:
+def _does_pid_exist(pid: int) -> bool:  # noqa: FNE005
     if pid is None:
         return False
     return ps.pid_exists(pid)
@@ -61,7 +59,7 @@ def is_locked(directory: str) -> bool:
 
 
 def is_locked_by_self(directory: str) -> bool:
-    return _read_pidfile(directory) == current_process_pid()
+    return _read_pidfile(directory) == os.getpid()
 
 
 def pid_lock(directory: str):
@@ -69,7 +67,7 @@ def pid_lock(directory: str):
     path = _make_pid_path(directory)
 
     file_pid = _read_pidfile(directory)
-    self_pid = current_process_pid()
+    self_pid = os.getpid()
 
     # The pid file has this process id, so we allow to lock it again.
     if file_pid == self_pid:
@@ -98,16 +96,16 @@ def pid_unlock(directory: str) -> None:
 
     file_pid = _read_pidfile(directory)
 
-    if file_pid == current_process_pid() or _does_pid_exist(file_pid) is False:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            raise LockException(f"Cannot unlock a not locked directory {directory}.")
-    else:
+    if _does_pid_exist(file_pid) and file_pid != os.getpid():
         raise LockException(
             f"Cannot unlock the directory {directory} because "
             f"it's locked by a running process with pid = {file_pid}."
         )
+
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        raise LockException(f"Cannot unlock a not locked directory {directory}.")
 
 
 class Lock:
@@ -123,12 +121,12 @@ class Lock:
         return _make_pid_path(self._directory)
 
     @property
-    def is_locked(self):
+    def is_locked(self) -> bool:
         return is_locked_by_self(self._directory)
 
     def __enter__(self):
         pid_lock(self._directory)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, traceback):  # noqa: A002
         pid_unlock(self._directory)

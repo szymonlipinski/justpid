@@ -2,6 +2,8 @@ import inspect
 import os
 import time
 from multiprocessing import Process
+from pathlib import Path
+from typing import Union
 
 import psutil as ps
 import pytest
@@ -9,7 +11,7 @@ import pytest
 from .context import sp
 
 
-def find_non_existing_pid() -> int:
+def find_non_existing_pid() -> Union[int, None]:
     """
     Tries to find a non existing pid in the system.
     """
@@ -18,8 +20,10 @@ def find_non_existing_pid() -> int:
         if pids[i - 1] + 1 != pids[i]:
             return pids[i - 1] + 1
 
+    return None
 
-@pytest.fixture(scope="function")
+
+@pytest.fixture(scope="function")  # noqa: PT003
 def datadir(tmpdir: str) -> str:
     """
     A fixture for creating a temporary directory.
@@ -35,7 +39,7 @@ def test_creating_pid_file(datadir):
     the directory should be locked right away.
     """
     path = sp.pid_lock(datadir)
-    assert path == os.path.join(datadir, ".pid")
+    assert path == Path(datadir / ".pid")
     assert os.path.isfile(path)
 
     with open(path) as f:
@@ -64,10 +68,16 @@ def test_locking_locked_directory_different_process(datadir):
     p = Process(target=lambda: sp.pid_lock(datadir))
     p.start()
 
-    while True:
-        if os.path.isfile(os.path.join(datadir, ".pid")):
-            time.sleep(0.1)
+    max_tries = 10
+    for _ in range(max_tries):
+        if Path(datadir / ".pid").is_file():
             break
+        else:
+            time.sleep(0.1)
+    else:
+        p.terminate()
+        p.join()
+        raise AssertionError()
 
     with pytest.raises(sp.LockException):
         sp.pid_lock(datadir)
@@ -88,7 +98,7 @@ def test_locking_without_running_a_process(datadir):
             use_pid = pids[i - 1] + 1
             break
 
-    pid_path = os.path.join(datadir, ".pid")
+    pid_path = Path(datadir / ".pid")
 
     with open(pid_path, "w+") as f:
         f.write(str(use_pid))
@@ -105,13 +115,13 @@ def test_unlocking(datadir):
     Unlocking should remove the pid file.
     """
 
-    path = os.path.join(datadir, ".pid")
+    path = Path(datadir / ".pid")
 
-    assert os.path.exists(path) is False
+    assert path.exists() is False
     sp.pid_lock(datadir)
-    assert os.path.exists(path) is True
+    assert path.exists() is True
     sp.pid_unlock(datadir)
-    assert os.path.exists(path) is False
+    assert path.exists() is False
 
 
 def test_unlocking_not_locked_directory(datadir):
@@ -133,7 +143,7 @@ def test_unlocking_from_another_process_when_locker_runs(datadir):
     p.start()
 
     while True:
-        if os.path.isfile(os.path.join(datadir, ".pid")):
+        if Path(datadir, ".pid").is_file():
             time.sleep(0.1)
             break
 
@@ -150,13 +160,13 @@ def test_unlocking_from_another_process_when_locker_doesnt_run(datadir):
     if the locker doesn't run.
     """
     pid = find_non_existing_pid()
-    pid_path = os.path.join(datadir, ".pid")
+    pid_path = Path(datadir / ".pid")
     with open(pid_path, "w") as f:
         f.write(str(pid))
 
     sp.pid_unlock(datadir)
 
-    assert os.path.exists(pid_path) is False
+    assert pid_path.is_file() is False
 
 
 def test_pidfile_with_garbage_inside(datadir):
@@ -164,7 +174,7 @@ def test_pidfile_with_garbage_inside(datadir):
     When the pid file contains something else than numbers,
     it should be treated as not locked.
     """
-    pid_path = os.path.join(datadir, ".pid")
+    pid_path = Path(datadir / ".pid")
     with open(pid_path, "w") as f:
         f.write(str("GARBAGE GARBAGE LOTS OF IT"))
 
@@ -173,9 +183,7 @@ def test_pidfile_with_garbage_inside(datadir):
 
 
 def test_checking_is_locked_functions(datadir):
-    """
-    A simple test for checking the `is_locked` function.
-    """
+    """A simple test for checking the `is_locked` function."""
     assert sp.is_locked(datadir) is False
     sp.pid_lock(datadir)
     assert sp.is_locked(datadir) is True
@@ -184,9 +192,7 @@ def test_checking_is_locked_functions(datadir):
 
 
 def test_simple_context_manager(datadir):
-    """
-    A simple test for checking the locking context manager.
-    """
+    """A simple test for checking the locking context manager."""
     pid_path = sp._make_pid_path(datadir)
     with sp.Lock(datadir) as lock:
         assert lock.directory == datadir
@@ -196,4 +202,4 @@ def test_simple_context_manager(datadir):
         assert file_pid == os.getpid()
 
     assert lock.is_locked is False
-    assert os.path.exists(pid_path) is False
+    assert pid_path.is_file() is False
