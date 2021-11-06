@@ -38,7 +38,7 @@ def test_creating_pid_file(datadir):
     When there is no pid file in a directory,
     the directory should be locked right away.
     """
-    path = sp.pid_lock(datadir)
+    path = sp.lock(datadir)
     assert path == Path(datadir / ".pid")
     assert os.path.isfile(path)
 
@@ -52,8 +52,8 @@ def test_locking_locked_directory_for_the_same_process(datadir):
     A process should be able to reenter the lock.
     """
 
-    path1 = sp.pid_lock(datadir)
-    path2 = sp.pid_lock(datadir)
+    path1 = sp.lock(datadir)
+    path2 = sp.lock(datadir)
 
     assert path1 == path2
 
@@ -65,7 +65,7 @@ def test_locking_locked_directory_different_process(datadir):
     and the process still exists.
     """
 
-    p = Process(target=lambda: sp.pid_lock(datadir))
+    p = Process(target=lambda: sp.lock(datadir))
     p.start()
 
     max_tries = 10
@@ -80,7 +80,7 @@ def test_locking_locked_directory_different_process(datadir):
         raise AssertionError()
 
     with pytest.raises(sp.LockException):
-        sp.pid_lock(datadir)
+        sp.lock(datadir)
 
     p.terminate()
     p.join()
@@ -103,7 +103,7 @@ def test_locking_without_running_a_process(datadir):
     with open(pid_path, "w+") as f:
         f.write(str(use_pid))
 
-    sp.pid_lock(datadir)
+    sp.lock(datadir)
     with open(pid_path, "r") as f:
         pid_content = f.read()
 
@@ -118,9 +118,9 @@ def test_unlocking(datadir):
     path = Path(datadir / ".pid")
 
     assert path.exists() is False
-    sp.pid_lock(datadir)
+    sp.lock(datadir)
     assert path.exists() is True
-    sp.pid_unlock(datadir)
+    sp.unlock(datadir)
     assert path.exists() is False
 
 
@@ -130,7 +130,7 @@ def test_unlocking_not_locked_directory(datadir):
     """
 
     with pytest.raises(sp.LockException):
-        sp.pid_unlock(datadir)
+        sp.unlock(datadir)
 
 
 def test_unlocking_from_another_process_when_locker_runs(datadir):
@@ -139,7 +139,7 @@ def test_unlocking_from_another_process_when_locker_runs(datadir):
     if the locking process runs.
     """
 
-    p = Process(target=lambda: sp.pid_lock(datadir))
+    p = Process(target=lambda: sp.lock(datadir))
     p.start()
 
     while True:
@@ -148,7 +148,7 @@ def test_unlocking_from_another_process_when_locker_runs(datadir):
             break
 
     with pytest.raises(sp.LockException):
-        sp.pid_unlock(datadir)
+        sp.unlock(datadir)
 
     p.terminate()
     p.join()
@@ -164,7 +164,7 @@ def test_unlocking_from_another_process_when_locker_doesnt_run(datadir):
     with open(pid_path, "w") as f:
         f.write(str(pid))
 
-    sp.pid_unlock(datadir)
+    sp.unlock(datadir)
 
     assert pid_path.is_file() is False
 
@@ -178,16 +178,16 @@ def test_pidfile_with_garbage_inside(datadir):
     with open(pid_path, "w") as f:
         f.write(str("GARBAGE GARBAGE LOTS OF IT"))
 
-    sp.pid_lock(datadir)
-    sp.pid_unlock(datadir)
+    sp.lock(datadir)
+    sp.unlock(datadir)
 
 
 def test_checking_is_locked_functions(datadir):
     """A simple test for checking the `is_locked` function."""
     assert sp.is_locked(datadir) is False
-    sp.pid_lock(datadir)
+    sp.lock(datadir)
     assert sp.is_locked(datadir) is True
-    sp.pid_unlock(datadir)
+    sp.unlock(datadir)
     assert sp.is_locked(datadir) is False
 
 
