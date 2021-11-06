@@ -10,15 +10,15 @@ version = (here / "VERSION").read_text(encoding="utf-8")
 
 
 def read_reqs(path: str) -> List[str]:
-    reqs = (here / "test_requirements.txt").read_text(encoding="utf-8").split("\n")
+    reqs = (here / path).read_text(encoding="utf-8").split("\n")
     return [req for req in reqs if req]
 
 
 install_requires = read_reqs(here / "requirements.txt")
 test_requires = read_reqs(here / "test_requirements.txt")
 
-test_requires += install_requires
-test_requires = set(test_requires)
+print(install_requires)
+
 
 setup(
     name="simplepid",
