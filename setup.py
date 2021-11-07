@@ -21,7 +21,7 @@ print(install_requires)
 
 
 setup(
-    name="simplepid",
+    name="justpid",
     version=version,
     description="A simple library for pidfiles support.",
     long_description=long_description,
@@ -44,7 +44,7 @@ setup(
     install_requires=install_requires,
     extras_require={"test": test_requires},
     project_urls={
-        "Bug Reports": "https://github.com/szymonlipinski/simplepid/issues",
-        "Source": "https://github.com/szymonlipinski/simplepid/",
+        "Bug Reports": "https://github.com/szymonlipinski/justpid/issues",
+        "Source": "https://github.com/szymonlipinski/justpid/",
     },
 )

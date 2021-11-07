@@ -2,6 +2,6 @@ API
 ===
 
 
-.. automodule:: simplepid
+.. automodule:: justpid
    :members:
 

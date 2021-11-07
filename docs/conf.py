@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "simplepid"
+project = "justpid"
 copyright = "2021, Szymon Lipiński"
 author = "Szymon Lipiński"
 

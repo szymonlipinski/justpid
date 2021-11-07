@@ -2,7 +2,7 @@
 Introduction
 ====================
 
-The SimplePidFile libraray is a very simple, yet functional, pid file implementation.
+The JustPidFile libraray is a very simple, yet functional, pid file implementation.
 
 This way the first process accessing the pid file, is able to write there its
 PID (Process ID). The next one will check the file, the pid inside, and will
@@ -30,14 +30,14 @@ Lock a directory using the simple functional API
 
 .. code-block:: python
 
-    import simplepid as sp
+    import justpid as jp
     directory = "abc"
 
     try:
-        sp.lock(directory)
+        jp.lock(directory)
         # some logic
-        sp.unlock(directory)
-    except sp.LockException:
+        jp.unlock(directory)
+    except jp.LockException:
         print("Cannot lock a directory")
 
 
@@ -46,9 +46,9 @@ Use a context manager to automatically unlock the directory at the end
 
 .. code-block:: python
 
-    import simplepid as sp
+    import justpid as jp
 
-    with sp.Lock(directory):
+    with jp.Lock(directory):
         # do something here
         # the directory is exlusively locked
     # and here is unlocked

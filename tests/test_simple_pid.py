@@ -8,7 +8,7 @@ from typing import Union
 import psutil as ps
 import pytest
 
-from .context import sp
+from .context import jp
 
 
 def find_non_existing_pid() -> Union[int, None]:
@@ -38,7 +38,7 @@ def test_creating_pid_file(datadir):
     When there is no pid file in a directory,
     the directory should be locked right away.
     """
-    path = sp.lock(datadir)
+    path = jp.lock(datadir)
     assert path == Path(datadir / ".pid")
     assert os.path.isfile(path)
 
@@ -52,8 +52,8 @@ def test_locking_locked_directory_for_the_same_process(datadir):
     A process should be able to reenter the lock.
     """
 
-    path1 = sp.lock(datadir)
-    path2 = sp.lock(datadir)
+    path1 = jp.lock(datadir)
+    path2 = jp.lock(datadir)
 
     assert path1 == path2
 
@@ -65,7 +65,7 @@ def test_locking_locked_directory_different_process(datadir):
     and the process still exists.
     """
 
-    p = Process(target=lambda: sp.lock(datadir))
+    p = Process(target=lambda: jp.lock(datadir))
     p.start()
 
     max_tries = 10
@@ -80,7 +80,7 @@ def test_locking_locked_directory_different_process(datadir):
         raise AssertionError()
 
     with pytest.raises(sp.LockException):
-        sp.lock(datadir)
+        jp.lock(datadir)
 
     p.terminate()
     p.join()
@@ -103,7 +103,7 @@ def test_locking_without_running_a_process(datadir):
     with open(pid_path, "w+") as f:
         f.write(str(use_pid))
 
-    sp.lock(datadir)
+    jp.lock(datadir)
     with open(pid_path, "r") as f:
         pid_content = f.read()
 
@@ -118,9 +118,9 @@ def test_unlocking(datadir):
     path = Path(datadir / ".pid")
 
     assert path.exists() is False
-    sp.lock(datadir)
+    jp.lock(datadir)
     assert path.exists() is True
-    sp.unlock(datadir)
+    jp.unlock(datadir)
     assert path.exists() is False
 
 
@@ -130,7 +130,7 @@ def test_unlocking_not_locked_directory(datadir):
     """
 
     with pytest.raises(sp.LockException):
-        sp.unlock(datadir)
+        jp.unlock(datadir)
 
 
 def test_unlocking_from_another_process_when_locker_runs(datadir):
@@ -139,7 +139,7 @@ def test_unlocking_from_another_process_when_locker_runs(datadir):
     if the locking process runs.
     """
 
-    p = Process(target=lambda: sp.lock(datadir))
+    p = Process(target=lambda: jp.lock(datadir))
     p.start()
 
     while True:
@@ -148,7 +148,7 @@ def test_unlocking_from_another_process_when_locker_runs(datadir):
             break
 
     with pytest.raises(sp.LockException):
-        sp.unlock(datadir)
+        jp.unlock(datadir)
 
     p.terminate()
     p.join()
@@ -164,7 +164,7 @@ def test_unlocking_from_another_process_when_locker_doesnt_run(datadir):
     with open(pid_path, "w") as f:
         f.write(str(pid))
 
-    sp.unlock(datadir)
+    jp.unlock(datadir)
 
     assert pid_path.is_file() is False
 
@@ -178,27 +178,27 @@ def test_pidfile_with_garbage_inside(datadir):
     with open(pid_path, "w") as f:
         f.write(str("GARBAGE GARBAGE LOTS OF IT"))
 
-    sp.lock(datadir)
-    sp.unlock(datadir)
+    jp.lock(datadir)
+    jp.unlock(datadir)
 
 
 def test_checking_is_locked_functions(datadir):
     """A simple test for checking the `is_locked` function."""
-    assert sp.is_locked(datadir) is False
-    sp.lock(datadir)
-    assert sp.is_locked(datadir) is True
-    sp.unlock(datadir)
-    assert sp.is_locked(datadir) is False
+    assert jp.is_locked(datadir) is False
+    jp.lock(datadir)
+    assert jp.is_locked(datadir) is True
+    jp.unlock(datadir)
+    assert jp.is_locked(datadir) is False
 
 
 def test_simple_context_manager(datadir):
     """A simple test for checking the locking context manager."""
-    pid_path = sp._make_pid_path(datadir)
-    with sp.Lock(datadir) as lock:
+    pid_path = jp._make_pid_path(datadir)
+    with jp.Lock(datadir) as lock:
         assert lock.directory == datadir
         assert lock.pid_path == pid_path
         assert lock.is_locked
-        file_pid = sp._read_pidfile(datadir)
+        file_pid = jp._read_pidfile(datadir)
         assert file_pid == os.getpid()
 
     assert lock.is_locked is False
