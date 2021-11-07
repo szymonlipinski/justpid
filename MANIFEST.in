@@ -1,0 +1,6 @@
+
+include tox.ini
+include README.rst
+include VERSION
+include requirements.txt
+include test_requirements.txt
